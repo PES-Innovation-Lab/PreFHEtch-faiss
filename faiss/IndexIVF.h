@@ -304,6 +304,26 @@ struct IndexIVF : Index, IndexIVFInterface {
             idx_t* labels,
             const SearchParameters* params = nullptr) const override;
 
+    /**************************
+     * n -> number of vectors that are will be given.
+     * x -> input buffer of ENCRYPTED vectors.
+     * centroid_idx -> The indexes of the centroids that the client will send.
+     * distances -> output buffer that will contain encrypted scores.
+     * labels -> output buffer that will contain the indexes of these vertices.
+     *
+     * for now x can be only one query vector but code should be written 
+     * such that the input can be batched at this level itself.
+     *************************/
+    void search_encrypted(
+            idx_t n,
+            const float* x,
+            idx_t* centroid_idx,
+            float* distances,
+            idx_t* labels,
+            size_t* list_sizes_per_query);
+
+    float* get_IVF_centroids();
+
     void range_search(
             idx_t n,
             const float* x,
@@ -502,6 +522,15 @@ struct InvertedListScanner {
             float* distances,
             idx_t* labels,
             size_t k) const;
+
+    virtual size_t scan_codes_encrypted(
+            size_t key,
+            size_t list_size,
+            const float* query,
+            const uint8_t* codes,
+            const idx_t* ids,
+            float* local_dist,
+            idx_t* local_idx) const;
 
     // same as scan_codes, using an iterator
     virtual size_t iterate_codes(

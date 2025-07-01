@@ -10,7 +10,9 @@
 #include <faiss/IndexIVF.h>
 
 #include <omp.h>
+#include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <mutex>
 
@@ -18,6 +20,7 @@
 #include <cinttypes>
 #include <cstdio>
 #include <limits>
+#include <faiss/MetricType.h>
 
 #include <faiss/utils/hamming.h>
 #include <faiss/utils/utils.h>
@@ -387,6 +390,79 @@ void IndexIVF::search(
         // all)
         sub_search_func(n, x, distances, labels, &indexIVF_stats);
     }
+}
+
+/*******************************
+ * We need to send the centroids to the client
+ * so that the client can first perform centroids search
+ * and return only the nprobe clusters.
+ * This means realistically we only need to re-implement
+ * search_preassigned function and rewrite the api such that 
+ * on first call the centroids are sent back
+ *****************************/
+void IndexIVF::search_encrypted(
+            idx_t n,
+            const float* x,
+            idx_t* centroid_idx,
+            float* distances,
+            idx_t* labels,
+            size_t* list_sizes_per_query){
+
+  size_t nprobe = 20;
+
+  // prefetch the lists basically like load into memory
+  invlists->prefetch_lists(centroid_idx, n*nprobe);
+  std::unique_ptr<InvertedListScanner> scanner(get_InvertedListScanner());
+
+  // key identifies one list.
+  auto scan_one_list = [&](idx_t key,
+                           const float* query,
+                           float* local_dist,
+                           idx_t* local_idx) {
+
+      // number of encoded vectors in each list (each cluster);
+      size_t list_size = invlists->list_size(key);
+
+      InvertedLists::ScopedCodes scodes(invlists, key);
+      // the actual codes. each code is of (code_size);
+      const uint8_t* codes = scodes.get();
+
+      const idx_t* ids = invlists->get_ids(key);
+
+      scanner->scan_codes_encrypted(key, list_size, query, codes, ids, local_dist, local_idx);
+
+      return list_size;
+  };
+
+  size_t temp_ith_query_vectors = 0;
+  size_t offset = 0;
+  for (idx_t ith_query = 0; ith_query<n ; ith_query++){
+    const float* query = x + ith_query*d;
+    temp_ith_query_vectors = 0;
+    for (idx_t ith_np = 0; ith_np < nprobe; ith_np++){
+      idx_t key = centroid_idx[ith_query*nprobe + ith_np];
+      float* one_list_distances = distances + offset;
+      idx_t* one_list_indexes = labels + offset;
+      size_t list_size = scan_one_list(key, query, one_list_distances, one_list_indexes);
+      temp_ith_query_vectors += list_size;
+      offset += list_size;
+    }
+    list_sizes_per_query[ith_query] = temp_ith_query_vectors;
+  }
+
+  return;
+
+} 
+
+float* IndexIVF::get_IVF_centroids(){
+  faiss::IndexFlat* quantizer_flat = dynamic_cast<faiss::IndexFlat*>(quantizer);
+  if (quantizer_flat) {
+    // do nothing
+  } else {
+    FAISS_THROW_MSG("Error: Dynamic casting from Index to IndexFlat failed");
+  }
+
+  return quantizer_flat->get_xb();
 }
 
 void IndexIVF::search_preassigned(
@@ -1282,6 +1358,18 @@ IndexIVFStats indexIVF_stats;
 /*************************************************************************
  * InvertedListScanner
  *************************************************************************/
+
+size_t InvertedListScanner::scan_codes_encrypted(
+            size_t key,
+            size_t list_size,
+            const float* query,
+            const uint8_t* codes,
+            const idx_t* ids,
+            float* local_dist,
+            idx_t* local_idx) const {
+    throw std::runtime_error("scan_codes_encrypted() not implemented");
+    return size_t(0);
+}
 
 size_t InvertedListScanner::scan_codes(
         size_t list_size,

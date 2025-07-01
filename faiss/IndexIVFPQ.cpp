@@ -997,6 +997,32 @@ struct IVFPQScannerT : QueryTables {
         }
     }
 
+    void scan_on_the_fly_dist_encrypted(
+            const float* qi,
+            size_t key,
+            size_t ncode,
+            const uint8_t* codes,
+            const idx_t* ids,
+            float* dist,
+            idx_t* idx) const {
+
+      // NEED TO REPLACE WITH ENCRYPTED OPERATION
+      // this is for L2 only.
+      ivfpq.quantizer->compute_residual(qi, residual_vec, key);
+      const float* dvec = residual_vec;
+
+      for (size_t j = 0; j < ncode; j++, codes += pq.code_size) {
+            pq.decode(codes, decoded_vec);
+
+            float dis;
+            // NEED TO REPLACE WITH ENCRYPTED OPERATION
+            dis = fvec_L2sqr(decoded_vec, dvec, d);
+            dist[j] = dis;
+            idx[j] = ids[j];
+        }
+    }
+    
+
     /*****************************************************
      * Scanning codes with polysemous filtering
      *****************************************************/
@@ -1223,6 +1249,20 @@ struct IVFPQScanner : IVFPQScannerT<idx_t, METRIC_TYPE, PQDecoder>,
                 distance_single_code<PQDecoder>(
                             this->pq.M, this->pq.nbits, this->sim_table, code);
         return dis;
+    }
+
+    size_t scan_codes_encrypted(
+        size_t key,
+        size_t list_size,
+        const float* query,
+        const uint8_t* codes,
+        const idx_t* ids,
+        float* local_dist,
+        idx_t* local_idx
+    ) const override {
+     
+      this->scan_on_the_fly_dist_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
+      return size_t(0);
     }
 
     size_t scan_codes(
