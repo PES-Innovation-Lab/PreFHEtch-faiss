@@ -408,8 +408,6 @@ void IndexIVF::search_encrypted(
             idx_t* labels,
             size_t* list_sizes_per_query){
 
-  size_t nprobe = 20;
-
   // prefetch the lists basically like load into memory
   invlists->prefetch_lists(centroid_idx, n*nprobe);
   std::unique_ptr<InvertedListScanner> scanner(get_InvertedListScanner());
@@ -441,6 +439,7 @@ void IndexIVF::search_encrypted(
     temp_ith_query_vectors = 0;
     for (idx_t ith_np = 0; ith_np < nprobe; ith_np++){
       idx_t key = centroid_idx[ith_query*nprobe + ith_np];
+      assert(key < nlist);
       float* one_list_distances = distances + offset;
       idx_t* one_list_indexes = labels + offset;
       size_t list_size = scan_one_list(key, query, one_list_distances, one_list_indexes);
