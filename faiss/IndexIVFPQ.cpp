@@ -16,6 +16,7 @@
 #include <cstdio>
 
 #include <algorithm>
+#include "faiss/impl/code_distance/code_distance-generic.h"
 
 #include <faiss/utils/Heap.h>
 #include <faiss/utils/distances.h>
@@ -503,6 +504,8 @@ struct QueryTables {
     // pre-allocated data buffers
     float *sim_table, *sim_table_2;
     float *residual_vec, *decoded_vec;
+
+    float *sim_table_encrypted;
 
     // single data buffer
     std::vector<float> mem;
@@ -1021,6 +1024,27 @@ struct IVFPQScannerT : QueryTables {
             idx[j] = ids[j];
         }
     }
+
+    void scan_list_with_table_encrypted(
+              // qi NEEDS TO BE AN ENCRYPTED VECTOR
+              const float* qi,
+              size_t key,
+              size_t ncode,
+              const uint8_t* codes,
+              const idx_t* ids,
+              float* dist,
+              idx_t* idx) const {
+
+        // compute the table with l2.
+        pq.compute_distance_table_encrypted(qi, sim_table);
+
+        for (size_t j = 0; j < ncode; j++, codes += pq.code_size) {
+            float dis = dis0 + distance_single_code_encrypted<PQDecoder>(pq.M, pq.nbits, sim_table, codes);
+            // append distance to the dist vector.
+            idx[j] = ids[j];
+            dist[j] = dis;
+        }
+    }
     
 
     /*****************************************************
@@ -1260,8 +1284,10 @@ struct IVFPQScanner : IVFPQScannerT<idx_t, METRIC_TYPE, PQDecoder>,
         float* local_dist,
         idx_t* local_idx
     ) const override {
-     
-      this->scan_on_the_fly_dist_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
+    
+
+      // this->scan_on_the_fly_dist_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
+      this->scan_list_with_table_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
       return size_t(0);
     }
 

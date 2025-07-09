@@ -37,6 +37,29 @@ inline float distance_single_code_generic(
     return result;
 }
 
+template <typename PQDecoderT>
+inline float distance_single_code_encrypted(
+  const size_t M,
+  const size_t nbits,
+  // THIS NEEDS TO BE CHANGED FROM FLOAT TO ENCRYPTED VARIANT
+  const float* sim_table,
+  const uint8_t* code){
+  PQDecoderT decoder(code, nbits);
+  const size_t ksub = 1 << nbits;
+
+  // NEED TO CHANGE TO ENCRYPTED 
+  const float* tab_encrypted = sim_table;
+  float result = 0;
+
+  for (size_t m = 0; m < M; m++){
+    // THIS ADDITION IS ENCRYPTED ADDITION
+    result += tab_encrypted[decoder.decode()];
+    tab_encrypted += ksub;
+  }
+
+  return result;
+}
+
 /// Combines 4 operations of distance_single_code()
 /// General-purpose version.
 template <typename PQDecoderT>

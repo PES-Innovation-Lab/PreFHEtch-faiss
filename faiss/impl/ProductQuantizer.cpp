@@ -453,6 +453,20 @@ void ProductQuantizer::compute_distance_table(const float* x, float* dis_table)
     }
 }
 
+void ProductQuantizer::compute_distance_table_encrypted(
+        const float* x,
+        float* dis_table) const {
+    size_t m;
+    for (m = 0; m < M; m++) {
+        fvec_L2sqr_ny_encrypted(
+                dis_table + m * ksub,
+                x + m * dsub,
+                get_centroids(m, 0),
+                dsub,
+                ksub);
+    }
+}
+
 void ProductQuantizer::compute_inner_prod_table(
         const float* x,
         float* dis_table) const {

@@ -125,6 +125,8 @@ struct ProductQuantizer : Quantizer {
      */
     void compute_distance_table(const float* x, float* dis_table) const;
 
+    void compute_distance_table_encrypted(const float* x, float* dis_table) const;
+
     void compute_inner_prod_table(const float* x, float* dis_table) const;
 
     /** compute distance table for several vectors

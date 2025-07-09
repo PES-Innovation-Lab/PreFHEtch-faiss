@@ -97,6 +97,18 @@ void fvec_L2sqr_ny_ref(
     }
 }
 
+void fvec_L2sqr_ny_encrypted(
+        float* dis,
+        const float* x,
+        const float* y,
+        size_t d,
+        size_t ny) {
+    for (size_t i = 0; i < ny; i++) {
+        dis[i] = fvec_L2sqr(x, y, d);
+        y += d;
+    }
+}
+
 void fvec_L2sqr_ny_y_transposed_ref(
         float* dis,
         const float* x,
