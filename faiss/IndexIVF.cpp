@@ -400,58 +400,81 @@ void IndexIVF::search(
  * search_preassigned function and rewrite the api such that 
  * on first call the centroids are sent back
  *****************************/
+
 void IndexIVF::search_encrypted(
-            idx_t n,
-            const float* x,
-            idx_t* centroid_idx,
-            float* distances,
-            idx_t* labels,
-            size_t* list_sizes_per_query){
+    idx_t n,
+    const float* x,
+    idx_t* centroid_idx,
+    float* distances,
+    idx_t* labels,
+    size_t* list_sizes_per_query)
+{
+    invlists->prefetch_lists(centroid_idx, n * nprobe);
 
-  // prefetch the lists basically like load into memory
-  invlists->prefetch_lists(centroid_idx, n*nprobe);
-  std::unique_ptr<InvertedListScanner> scanner(get_InvertedListScanner());
-
-  // key identifies one list.
-  auto scan_one_list = [&](idx_t key,
-                           const float* query,
-                           float* local_dist,
-                           idx_t* local_idx) {
-
-      // number of encoded vectors in each list (each cluster);
-      size_t list_size = invlists->list_size(key);
-
-      InvertedLists::ScopedCodes scodes(invlists, key);
-      // the actual codes. each code is of (code_size);
-      const uint8_t* codes = scodes.get();
-
-      const idx_t* ids = invlists->get_ids(key);
-
-      scanner->scan_codes_encrypted(key, list_size, query, codes, ids, local_dist, local_idx);
-
-      return list_size;
-  };
-
-  size_t temp_ith_query_vectors = 0;
-  size_t offset = 0;
-  for (idx_t ith_query = 0; ith_query<n ; ith_query++){
-    const float* query = x + ith_query*d;
-    temp_ith_query_vectors = 0;
-    for (idx_t ith_np = 0; ith_np < nprobe; ith_np++){
-      idx_t key = centroid_idx[ith_query*nprobe + ith_np];
-      assert(key < nlist);
-      float* one_list_distances = distances + offset;
-      idx_t* one_list_indexes = labels + offset;
-      size_t list_size = scan_one_list(key, query, one_list_distances, one_list_indexes);
-      temp_ith_query_vectors += list_size;
-      offset += list_size;
+    for (idx_t i = 0; i < n; ++i) {
+        size_t total = 0;
+        for (idx_t j = 0; j < nprobe; ++j) {
+            idx_t key = centroid_idx[i * nprobe + j];
+            if (key >= 0 && key < nlist) {
+                total += invlists->list_size(key);
+            }
+        }
+        list_sizes_per_query[i] = total;
     }
-    list_sizes_per_query[ith_query] = temp_ith_query_vectors;
-  }
 
-  return;
+    std::vector<size_t> global_offsets(n + 1, 0);
+    for (idx_t i = 0; i < n; ++i) {
+        global_offsets[i + 1] = global_offsets[i] + list_sizes_per_query[i];
+    }
 
-} 
+#pragma omp parallel
+    {
+        std::unique_ptr<InvertedListScanner> scanner(get_InvertedListScanner());
+
+#pragma omp for
+        for (idx_t ith_query = 0; ith_query < n; ++ith_query) {
+            const float* query = x + ith_query * d;
+
+            size_t max_total_size = list_sizes_per_query[ith_query];
+
+            float* local_dist = new float[max_total_size];
+            idx_t* local_ids = new idx_t[max_total_size];
+
+            size_t offset = 0;
+
+            for (idx_t ith_np = 0; ith_np < nprobe; ++ith_np) {
+                idx_t key = centroid_idx[ith_query * nprobe + ith_np];
+                if (key < 0 || key >= nlist) continue;
+
+                size_t list_size = invlists->list_size(key);
+                if (list_size == 0) continue;
+
+                InvertedLists::ScopedCodes scodes(invlists, key);
+                const uint8_t* codes = scodes.get();
+                const idx_t* ids = invlists->get_ids(key);
+
+                scanner->scan_codes_encrypted(
+                    key,
+                    list_size,
+                    query,
+                    codes,
+                    ids,
+                    local_dist + offset,
+                    local_ids + offset
+                );
+
+                offset += list_size;
+            }
+
+            size_t global_offset = global_offsets[ith_query];
+            std::copy(local_dist, local_dist + offset, distances + global_offset);
+            std::copy(local_ids, local_ids + offset, labels + global_offset);
+
+            delete[] local_dist;
+            delete[] local_ids;
+        }
+    }
+}
 
 float* IndexIVF::get_IVF_centroids(){
   faiss::IndexFlat* quantizer_flat = dynamic_cast<faiss::IndexFlat*>(quantizer);

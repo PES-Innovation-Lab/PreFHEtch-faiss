@@ -24,6 +24,16 @@ void Index::train(idx_t /*n*/, const float* /*x*/) {
     // does nothing by default
 }
 
+void Index::search_encrypted(
+        idx_t n,
+        const float* x,
+        idx_t* centroid_idx,
+        float* distances,
+        idx_t* labels,
+        size_t* list_sizes_per_query){
+  FAISS_THROW_MSG("search encrypted not implemented");
+}
+
 void Index::range_search(
         idx_t,
         const float*,

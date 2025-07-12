@@ -320,7 +320,7 @@ struct IndexIVF : Index, IndexIVFInterface {
             idx_t* centroid_idx,
             float* distances,
             idx_t* labels,
-            size_t* list_sizes_per_query);
+            size_t* list_sizes_per_query) override;
 
     float* get_IVF_centroids();
 

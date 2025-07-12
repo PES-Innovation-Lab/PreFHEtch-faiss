@@ -193,6 +193,14 @@ struct Index {
             idx_t* labels,
             const SearchParameters* params = nullptr) const = 0;
 
+    virtual void search_encrypted(
+            idx_t n,
+            const float* x,
+            idx_t* centroid_idx,
+            float* distances,
+            idx_t* labels,
+            size_t* list_sizes_per_query);
+
     virtual void search(
             idx_t n,
             const void* x,
