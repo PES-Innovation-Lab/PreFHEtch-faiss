@@ -126,13 +126,16 @@ if(BUILD_TESTING)
   endif()
 endif()
 
-include(FetchContent)
+if(NOT TARGET seal)
+  include(FetchContent)
 
-FetchContent_Declare(
-  SEAL
-  GIT_REPOSITORY https://github.com/microsoft/SEAL.git 
-  GIT_TAG 7a931d55ba84a40b85938f6ca3ac206f18654093
-)
+  FetchContent_Declare(
+    SEAL
+    GIT_REPOSITORY https://github.com/microsoft/SEAL.git 
+    GIT_TAG 7a931d55ba84a40b85938f6ca3ac206f18654093
+  )
 
-FetchContent_MakeAvailable(SEAL)
+  FetchContent_MakeAvailable(SEAL)
+endif()
+
 target_link_libraries(faiss PUBLIC seal)
