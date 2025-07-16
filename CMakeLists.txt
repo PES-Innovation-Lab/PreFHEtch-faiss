@@ -136,6 +136,3 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(SEAL)
 target_link_libraries(faiss PUBLIC seal)
-
-add_executable(quantize Quantization.cpp)
-target_link_libraries(quantize PRIVATE faiss)
