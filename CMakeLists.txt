@@ -124,3 +124,17 @@ if(BUILD_TESTING)
     endif()
   endif()
 endif()
+
+include(FetchContent)
+
+FetchContent_Declare(
+  SEAL
+  GIT_REPOSITORY https://github.com/microsoft/SEAL.git 
+  GIT_TAG 7a931d55ba84a40b85938f6ca3ac206f18654093
+)
+
+FetchContent_MakeAvailable(SEAL)
+target_link_libraries(faiss PUBLIC seal)
+
+add_executable(quantize Quantization.cpp)
+target_link_libraries(quantize PRIVATE faiss)
