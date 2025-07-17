@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <ctime>
 #include <cstdio>
 #include <cstring>
 
@@ -104,6 +105,13 @@ void fvec_L2sqr_ny_encrypted(
         size_t d,
         size_t ny) {
     for (size_t i = 0; i < ny; i++) {
+        // need to replace this with encrypted fvec_L2sqr.
+        // replace sleepTime here to the desired encrypted operation time.
+        int sleepTime = 10;
+        struct timespec req;
+        req.tv_sec = 0;
+        req.tv_nsec = sleepTime * 1000 * 1000;
+        clock_nanosleep(CLOCK_REALTIME, 0, &req, NULL);
         dis[i] = fvec_L2sqr(x, y, d);
         y += d;
     }

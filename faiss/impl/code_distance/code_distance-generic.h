@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <ctime>
 #include <cstddef>
 #include <cstdint>
 
@@ -53,6 +54,11 @@ inline float distance_single_code_encrypted(
 
   for (size_t m = 0; m < M; m++){
     // THIS ADDITION IS ENCRYPTED ADDITION
+    int sleepTime = 10;
+    struct timespec req;
+    req.tv_sec = 0;
+    req.tv_nsec = sleepTime * 1000 * 1000;
+    clock_nanosleep(CLOCK_REALTIME, 0, &req, NULL);
     result += tab_encrypted[decoder.decode()];
     tab_encrypted += ksub;
   }
