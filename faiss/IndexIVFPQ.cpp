@@ -1294,20 +1294,22 @@ struct IVFPQScanner : IVFPQScannerT<idx_t, METRIC_TYPE, PQDecoder>,
     }
 
     size_t scan_codes_encrypted(
-        seal::BatchEncoder batchencoder,
-        seal::Evaluator evaluator,
-        seal::RelinKeys rKey,
+        seal::BatchEncoder& batchencoder,
+        seal::Evaluator& evaluator,
+        seal::RelinKeys& rKey,
+        int64_t BFV_SCALING_FACTOR,
         size_t key,
         size_t list_size,
-        seal::Ciphertext residual_query,
+        seal::Ciphertext rq,
+        seal::Ciphertext rq_sq,
         const uint8_t* codes,
         const idx_t* ids,
         std::vector<seal::Ciphertext> local_dist,
-        std::vector<seal::Ciphertext> local_ids,
+        std::vector<seal::Ciphertext> local_ids
     ) const override {
     
 
-      this->scan_on_the_fly_dist_encrypted(residual_query, key, list_size, codes, ids, local_dist, local_idx);
+      this->scan_on_the_fly_dist_encrypted(batchencoder, evaluator, rKey, BFV_SCALING_FACTOR, rq, rq_sq, key, list_size, codes, ids, local_dist, local_ids);
       // this->scan_list_with_table_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
       return size_t(0);
     }

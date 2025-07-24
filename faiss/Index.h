@@ -195,15 +195,17 @@ struct Index {
             const SearchParameters* params = nullptr) const = 0;
 
     virtual void search_encrypted(
-            idx_t n,
-            const float* x,
-            idx_t* centroid_idx,
-            float* distances,
-            idx_t* labels,
-            size_t* list_sizes_per_query,
-            seal::BatchEncoder batchencoder,
-            seal::Evaluator evaluator,
-            seal::RelinKeys rKey);
+        seal::BatchEncoder& batchencoder,
+        seal::Evaluator& evaluator,
+        seal::RelinKeys& rKey,
+        int64_t BFV_SCALING_FACTOR,
+        idx_t n,
+        std::vector<std::vector<seal::Ciphertext>> rq,
+        std::vector<std::vector<seal::Ciphertext>> rq_sq,
+        idx_t* centroid_idx,
+        std::vector<std::vector<seal::Ciphertext>> distances,
+        std::vector<std::vector<seal::Ciphertext>> labels);
+
 
     virtual void search(
             idx_t n,

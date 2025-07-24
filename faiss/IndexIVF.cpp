@@ -23,6 +23,7 @@
 #include "seal/batchencoder.h"
 #include "seal/ciphertext.h"
 #include "seal/evaluator.h"
+#include "seal/plaintext.h"
 #include "seal/relinkeys.h"
 #include <faiss/MetricType.h>
 
@@ -406,9 +407,10 @@ void IndexIVF::search(
  *****************************/
 
 void IndexIVF::search_encrypted(
-    seal::BatchEncoder batchencoder,
-    seal::Evaluator evaluator,
-    seal::RelinKeys rKey,
+    seal::BatchEncoder& batchencoder,
+    seal::Evaluator& evaluator,
+    seal::RelinKeys& rKey,
+    int64_t BFV_SCALING_FACTOR,
     idx_t n,
     std::vector<std::vector<seal::Ciphertext>> rq,
     std::vector<std::vector<seal::Ciphertext>> rq_sq,
@@ -442,7 +444,7 @@ void IndexIVF::search_encrypted(
 
 #pragma omp for
         for (idx_t ith_query = 0; ith_query < n; ++ith_query) {
-            const std::vector<seal::Ciphertext>& query = rq[ith_query];
+
             size_t max_total_size = list_sizes_per_query[ith_query];
 
             std::vector<seal::Ciphertext> local_dist;
@@ -455,6 +457,9 @@ void IndexIVF::search_encrypted(
             size_t offset = 0;
 
             for (idx_t ith_np = 0; ith_np < nprobe; ++ith_np) {
+                const seal::Ciphertext& query = rq[ith_query][ith_np];
+                const seal::Ciphertext& query_sq = rq_sq[ith_query][ith_np];
+
                 idx_t key = centroid_idx[ith_query * nprobe + ith_np];
                 if (key < 0 || key >= nlist) continue;
 
@@ -472,9 +477,11 @@ void IndexIVF::search_encrypted(
                     batchencoder,
                     evaluator,
                     rKey,
+                    BFV_SCALING_FACTOR,
                     key,
                     list_size,
                     query,
+                    query_sq,
                     codes,
                     ids,
                     sub_distances,
@@ -1407,14 +1414,18 @@ IndexIVFStats indexIVF_stats;
  *************************************************************************/
 
 size_t InvertedListScanner::scan_codes_encrypted(
+            seal::BatchEncoder& batchencoder,
+            seal::Evaluator& evaluator,
+            seal::RelinKeys& rKey,
+            int64_t BFV_SCALING_FACTOR,
             size_t key,
             size_t list_size,
-            // const float* query,
-            seal::Ciphertext residual_query,
+            seal::Ciphertext rq,
+            seal::Ciphertext rq_sq,
             const uint8_t* codes,
             const idx_t* ids,
-            float* local_dist,
-            idx_t* local_idx) const {
+            std::vector<seal::Ciphertext> local_dist,
+            std::vector<seal::Ciphertext> local_ids) const {
     throw std::runtime_error("scan_codes_encrypted() not implemented");
     return size_t(0);
 }

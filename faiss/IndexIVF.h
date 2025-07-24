@@ -330,15 +330,16 @@ struct IndexIVF : Index, IndexIVFInterface {
      * such that the input can be batched at this level itself.
      *************************/
     void search_encrypted(
-        seal::BatchEncoder batchencoder,
-        seal::Evaluator evaluator,
-        seal::RelinKeys rKey,
+        seal::BatchEncoder& batchencoder,
+        seal::Evaluator& evaluator,
+        seal::RelinKeys& rKey,
+        int64_t BFV_SCALING_FACTOR,
         idx_t n,
         std::vector<std::vector<seal::Ciphertext>> rq,
         std::vector<std::vector<seal::Ciphertext>> rq_sq,
         idx_t* centroid_idx,
         std::vector<std::vector<seal::Ciphertext>> distances,
-        std::vector<std::vector<seal::Ciphertext>> labels);
+        std::vector<std::vector<seal::Ciphertext>> labels) override;
 
     float* get_IVF_centroids();
 
@@ -542,14 +543,26 @@ struct InvertedListScanner {
             size_t k) const;
 
     virtual size_t scan_codes_encrypted(
+            seal::BatchEncoder& batchencoder,
+            seal::Evaluator& evaluator,
+            seal::RelinKeys& rKey,
+            int64_t BFV_SCALING_FACTOR,
             size_t key,
             size_t list_size,
-            seal::Ciphertext residual_query,
-            // const float* query,
+            seal::Ciphertext rq,
+            seal::Ciphertext rq_sq,
             const uint8_t* codes,
             const idx_t* ids,
-            float* local_dist,
-            idx_t* local_idx) const;
+            std::vector<seal::Ciphertext> local_dist,
+            std::vector<seal::Ciphertext> local_ids) const;
+            // size_t key,
+            // size_t list_size,
+            // seal::Ciphertext residual_query,
+            // // const float* query,
+            // const uint8_t* codes,
+            // const idx_t* ids,
+            // float* local_dist,
+            // idx_t* local_idx) const;
 
     // same as scan_codes, using an iterator
     virtual size_t iterate_codes(
