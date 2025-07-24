@@ -125,9 +125,8 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     // Scale to match rq_sq's scaling (BFV_SCALING_FACTOR²)
     int64_t scaled_a2 = static_cast<int64_t>(a2 * BFV_SCALING_FACTOR * BFV_SCALING_FACTOR);
     seal::Plaintext pt_a2;
-    // TODO
-    // Change scaled_a2 to be a vector<int64_t>
-    encoder.encode(scaled_a2, pt_a2);  // Encodes as a constant polynomial
+    std::vector<int64_t> a2_vec(encoder.slot_count(), scaled_a2);
+    encoder.encode(a2_vec, pt_a2);  // Encodes as a constant polynomial
 
     // --- 2. Compute dot product <a, b> ---
     // Encode decoded_vec with scaling (BFV_SCALING_FACTOR)
@@ -154,9 +153,8 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     // --- 3. Compute -2ab (already scaled by BFV_SCALING_FACTOR²) ---
     // Multiply by -2 (no additional scaling needed)
     seal::Plaintext pt_minus2;
-    // TODO
-    // again -2 needs to be an int64 vector
-    encoder.encode(-2, pt_minus2);
+    std::vector<int64_t> minus2_vec(encoder.slot_count(), -2);
+    encoder.encode(minus2_vec, pt_minus2);
     evaluator.multiply_plain_inplace(ab, pt_minus2);
     evaluator.relinearize_inplace(ab, rKey);
 
