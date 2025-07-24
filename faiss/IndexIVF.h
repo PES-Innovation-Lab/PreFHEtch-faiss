@@ -16,6 +16,7 @@
 #include <vector>
 #include "faiss/MetricType.h"
 #include "seal/ciphertext.h"
+#include "seal/galoiskeys.h"
 
 #include <faiss/Clustering.h>
 #include <faiss/Index.h>
@@ -547,6 +548,7 @@ struct InvertedListScanner {
             seal::BatchEncoder& batchencoder,
             seal::Evaluator& evaluator,
             seal::RelinKeys& rKey,
+            seal::GaloisKeys& gKey,
             int64_t BFV_SCALING_FACTOR,
             size_t key,
             size_t list_size,

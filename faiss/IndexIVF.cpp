@@ -23,6 +23,7 @@
 #include "seal/batchencoder.h"
 #include "seal/ciphertext.h"
 #include "seal/evaluator.h"
+#include "seal/galoiskeys.h"
 #include "seal/plaintext.h"
 #include "seal/relinkeys.h"
 #include <faiss/MetricType.h>
@@ -410,6 +411,7 @@ void IndexIVF::search_encrypted(
     seal::BatchEncoder& batchencoder,
     seal::Evaluator& evaluator,
     seal::RelinKeys& rKey,
+    seal::GaloisKeys& gKey,
     int64_t BFV_SCALING_FACTOR,
     idx_t n,
     std::vector<std::vector<seal::Ciphertext>>& rq,
@@ -471,6 +473,7 @@ void IndexIVF::search_encrypted(
                     batchencoder,
                     evaluator,
                     rKey,
+                    gKey,
                     BFV_SCALING_FACTOR,
                     key,
                     list_size,
@@ -1410,6 +1413,7 @@ size_t InvertedListScanner::scan_codes_encrypted(
             seal::BatchEncoder& batchencoder,
             seal::Evaluator& evaluator,
             seal::RelinKeys& rKey,
+            seal::GaloisKeys& gKey,
             int64_t BFV_SCALING_FACTOR,
             size_t key,
             size_t list_size,

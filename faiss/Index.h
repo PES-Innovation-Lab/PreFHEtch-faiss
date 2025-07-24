@@ -18,6 +18,7 @@
 #include <string>
 #include <seal/seal.h>
 #include <typeinfo>
+#include "seal/galoiskeys.h"
 
 #define FAISS_VERSION_MAJOR 1
 #define FAISS_VERSION_MINOR 11
@@ -198,6 +199,7 @@ struct Index {
         seal::BatchEncoder& batchencoder,
         seal::Evaluator& evaluator,
         seal::RelinKeys& rKey,
+        seal::GaloisKeys& gKey,
         int64_t BFV_SCALING_FACTOR,
         idx_t n,
         std::vector<std::vector<seal::Ciphertext>>& rq,

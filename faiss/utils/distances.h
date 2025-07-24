@@ -12,6 +12,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <seal/seal.h>
 
 #include <faiss/impl/platform_macros.h>
 #include <faiss/utils/Heap.h>
@@ -63,6 +64,17 @@ void fvec_L2sqr_batch_4(
         float& dis1,
         float& dis2,
         float& dis3);
+
+seal::Ciphertext fvec_L2sqr_encrypted(
+    seal::BatchEncoder& encoder,
+    seal::Evaluator& evaluator,
+    seal::RelinKeys& rKey,
+    seal::GaloisKeys& gKey,
+    int64_t BFV_SCALING_FACTOR,
+    float* decoded_vec,
+    seal::Ciphertext& rq,          // Encrypted vector b, scaled by BFV_SCALING_FACTOR
+    seal::Ciphertext& rq_sq,       // Encrypted b², scaled by BFV_SCALING_FACTOR²
+    size_t d);
 
 /** Compute pairwise distances between sets of vectors
  *

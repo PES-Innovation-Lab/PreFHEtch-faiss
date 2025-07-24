@@ -20,6 +20,7 @@
 #include "seal/batchencoder.h"
 #include "seal/ciphertext.h"
 #include "seal/evaluator.h"
+#include "seal/galoiskeys.h"
 #include "seal/relinkeys.h"
 #include "seal/serializable.h"
 
@@ -1017,6 +1018,7 @@ struct IVFPQScannerT : QueryTables {
             seal::BatchEncoder& encoder,
             seal::Evaluator& evaluator,
             seal::RelinKeys& rKey,
+            seal::GaloisKeys& gKey,
             int64_t BFV_SCALING_FACTOR,
             seal::Ciphertext& rq,
             seal::Ciphertext& rq_sq,
@@ -1027,7 +1029,6 @@ struct IVFPQScannerT : QueryTables {
             std::vector<seal::Ciphertext>& distances,
             std::vector<idx_t>& idx) const {
 
-
       for (size_t j = 0; j < ncode; j++, codes += pq.code_size) {
             pq.decode(codes, decoded_vec);
             for (int i = 0; i<d; i++){
@@ -1035,7 +1036,7 @@ struct IVFPQScannerT : QueryTables {
             }
 
             seal::Ciphertext dis;
-            dis = fvec_L2sqr_encrypted(encoder, evaluator, rKey, BFV_SCALING_FACTOR, decoded_vec, rq, rq_sq, d);
+            dis = fvec_L2sqr_encrypted(encoder, evaluator, rKey, gKey, BFV_SCALING_FACTOR, decoded_vec, rq, rq_sq, d);
             distances.push_back(dis);
             idx.push_back(ids[j]);
         }
@@ -1295,6 +1296,7 @@ struct IVFPQScanner : IVFPQScannerT<idx_t, METRIC_TYPE, PQDecoder>,
         seal::BatchEncoder& batchencoder,
         seal::Evaluator& evaluator,
         seal::RelinKeys& rKey,
+        seal::GaloisKeys& gKey,
         int64_t BFV_SCALING_FACTOR,
         size_t key,
         size_t list_size,
@@ -1307,7 +1309,7 @@ struct IVFPQScanner : IVFPQScannerT<idx_t, METRIC_TYPE, PQDecoder>,
     ) const override {
     
 
-      this->scan_on_the_fly_dist_encrypted(batchencoder, evaluator, rKey, BFV_SCALING_FACTOR, rq, rq_sq, key, list_size, codes, ids, local_dist, local_ids);
+      this->scan_on_the_fly_dist_encrypted(batchencoder, evaluator, rKey, gKey, BFV_SCALING_FACTOR, rq, rq_sq, key, list_size, codes, ids, local_dist, local_ids);
       // this->scan_list_with_table_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
       return size_t(0);
     }

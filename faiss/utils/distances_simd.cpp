@@ -19,6 +19,7 @@
 #include <faiss/impl/platform_macros.h>
 
 #include <cstddef>
+#include "seal/galoiskeys.h"
 #include <seal/seal.h>
 #include <faiss/utils/simdlib.h>
 
@@ -109,10 +110,11 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     seal::BatchEncoder& encoder,
     seal::Evaluator& evaluator,
     seal::RelinKeys& rKey,
+    seal::GaloisKeys& gKey,
     int64_t BFV_SCALING_FACTOR,
-    const std::vector<float>& decoded_vec,
-    const seal::Ciphertext& rq,          // Encrypted vector b, scaled by BFV_SCALING_FACTOR
-    const seal::Ciphertext& rq_sq,       // Encrypted b², scaled by BFV_SCALING_FACTOR²
+    float* decoded_vec,
+    seal::Ciphertext& rq,          // Encrypted vector b, scaled by BFV_SCALING_FACTOR
+    seal::Ciphertext& rq_sq,       // Encrypted b², scaled by BFV_SCALING_FACTOR²
     size_t d)
 {
     // --- 1. Compute plaintext a² (with proper scaling) ---
@@ -123,6 +125,7 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     // Scale to match rq_sq's scaling (BFV_SCALING_FACTOR²)
     int64_t scaled_a2 = static_cast<int64_t>(a2 * BFV_SCALING_FACTOR * BFV_SCALING_FACTOR);
     seal::Plaintext pt_a2;
+    // TODO
     // Change scaled_a2 to be a vector<int64_t>
     encoder.encode(scaled_a2, pt_a2);  // Encodes as a constant polynomial
 
@@ -144,15 +147,14 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     size_t nslots = encoder.slot_count();
     for (size_t step = 1; step < nslots; step <<= 1) {
         seal::Ciphertext rotated;
-        // see if we can use something with relinearization RelinKeys
-        // because the following function takes galois keys not rkeys
-        evaluator.rotate_rows(ab, step, rKey, rotated);
+        evaluator.rotate_rows(ab, step, gKey, rotated);
         evaluator.add_inplace(ab, rotated);
     }
 
     // --- 3. Compute -2ab (already scaled by BFV_SCALING_FACTOR²) ---
     // Multiply by -2 (no additional scaling needed)
     seal::Plaintext pt_minus2;
+    // TODO
     // again -2 needs to be an int64 vector
     encoder.encode(-2, pt_minus2);
     evaluator.multiply_plain_inplace(ab, pt_minus2);
