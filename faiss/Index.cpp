@@ -15,6 +15,7 @@
 #include <faiss/utils/distances.h>
 
 #include <cstring>
+#include "faiss/MetricType.h"
 
 namespace faiss {
 
@@ -25,12 +26,16 @@ void Index::train(idx_t /*n*/, const float* /*x*/) {
 }
 
 void Index::search_encrypted(
+        seal::BatchEncoder& batchencoder,
+        seal::Evaluator& evaluator,
+        seal::RelinKeys& rKey,
+        int64_t BFV_SCALING_FACTOR,
         idx_t n,
-        const float* x,
+        std::vector<std::vector<seal::Ciphertext>>& rq,
+        std::vector<std::vector<seal::Ciphertext>>& rq_sq,
         idx_t* centroid_idx,
-        float* distances,
-        idx_t* labels,
-        size_t* list_sizes_per_query){
+        std::vector<std::vector<seal::Ciphertext>>& distances,
+        std::vector<std::vector<idx_t>>& labels) {
   FAISS_THROW_MSG("search encrypted not implemented");
 }
 

@@ -200,11 +200,11 @@ struct Index {
         seal::RelinKeys& rKey,
         int64_t BFV_SCALING_FACTOR,
         idx_t n,
-        std::vector<std::vector<seal::Ciphertext>> rq,
-        std::vector<std::vector<seal::Ciphertext>> rq_sq,
+        std::vector<std::vector<seal::Ciphertext>>& rq,
+        std::vector<std::vector<seal::Ciphertext>>& rq_sq,
         idx_t* centroid_idx,
-        std::vector<std::vector<seal::Ciphertext>> distances,
-        std::vector<std::vector<seal::Ciphertext>> labels);
+        std::vector<std::vector<seal::Ciphertext>>& distances,
+        std::vector<std::vector<idx_t>>& labels);
 
 
     virtual void search(

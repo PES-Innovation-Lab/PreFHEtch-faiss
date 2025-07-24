@@ -14,6 +14,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include "faiss/MetricType.h"
 #include "seal/ciphertext.h"
 
 #include <faiss/Clustering.h>
@@ -335,11 +336,11 @@ struct IndexIVF : Index, IndexIVFInterface {
         seal::RelinKeys& rKey,
         int64_t BFV_SCALING_FACTOR,
         idx_t n,
-        std::vector<std::vector<seal::Ciphertext>> rq,
-        std::vector<std::vector<seal::Ciphertext>> rq_sq,
+        std::vector<std::vector<seal::Ciphertext>>& rq,
+        std::vector<std::vector<seal::Ciphertext>>& rq_sq,
         idx_t* centroid_idx,
-        std::vector<std::vector<seal::Ciphertext>> distances,
-        std::vector<std::vector<seal::Ciphertext>> labels) override;
+        std::vector<std::vector<seal::Ciphertext>>& distances,
+        std::vector<std::vector<idx_t>>& labels) override;
 
     float* get_IVF_centroids();
 
@@ -549,12 +550,12 @@ struct InvertedListScanner {
             int64_t BFV_SCALING_FACTOR,
             size_t key,
             size_t list_size,
-            seal::Ciphertext rq,
-            seal::Ciphertext rq_sq,
+            seal::Ciphertext& rq,
+            seal::Ciphertext& rq_sq,
             const uint8_t* codes,
             const idx_t* ids,
-            std::vector<seal::Ciphertext> local_dist,
-            std::vector<seal::Ciphertext> local_ids) const;
+            std::vector<seal::Ciphertext>& local_dist,
+            std::vector<idx_t>& local_ids) const;
             // size_t key,
             // size_t list_size,
             // seal::Ciphertext residual_query,

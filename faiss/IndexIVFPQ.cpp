@@ -1014,18 +1014,18 @@ struct IVFPQScannerT : QueryTables {
     }
 
     void scan_on_the_fly_dist_encrypted(
-            seal::BatchEncoder encoder,
-            seal::Evaluator evaluator,
-            seal::RelinKeys rKey,
+            seal::BatchEncoder& encoder,
+            seal::Evaluator& evaluator,
+            seal::RelinKeys& rKey,
             int64_t BFV_SCALING_FACTOR,
-            seal::Ciphertext rq,
-            seal::Ciphertext rq_sq,
+            seal::Ciphertext& rq,
+            seal::Ciphertext& rq_sq,
             size_t key,
             size_t ncode,
             const uint8_t* codes,
             const idx_t* ids,
-            std::vector<seal::Ciphertext> distances,
-            std::vector<idx_t> idx) const {
+            std::vector<seal::Ciphertext>& distances,
+            std::vector<idx_t>& idx) const {
 
 
       for (size_t j = 0; j < ncode; j++, codes += pq.code_size) {
@@ -1300,12 +1300,12 @@ struct IVFPQScanner : IVFPQScannerT<idx_t, METRIC_TYPE, PQDecoder>,
         int64_t BFV_SCALING_FACTOR,
         size_t key,
         size_t list_size,
-        seal::Ciphertext rq,
-        seal::Ciphertext rq_sq,
+        seal::Ciphertext& rq,
+        seal::Ciphertext& rq_sq,
         const uint8_t* codes,
         const idx_t* ids,
-        std::vector<seal::Ciphertext> local_dist,
-        std::vector<seal::Ciphertext> local_ids
+        std::vector<seal::Ciphertext>& local_dist,
+        std::vector<idx_t>& local_ids
     ) const override {
     
 

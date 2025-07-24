@@ -412,13 +412,16 @@ void IndexIVF::search_encrypted(
     seal::RelinKeys& rKey,
     int64_t BFV_SCALING_FACTOR,
     idx_t n,
-    std::vector<std::vector<seal::Ciphertext>> rq,
-    std::vector<std::vector<seal::Ciphertext>> rq_sq,
+    std::vector<std::vector<seal::Ciphertext>>& rq,
+    std::vector<std::vector<seal::Ciphertext>>& rq_sq,
     idx_t* centroid_idx,
-    std::vector<std::vector<seal::Ciphertext>> distances,
-    std::vector<std::vector<seal::Ciphertext>> labels)
+    std::vector<std::vector<seal::Ciphertext>>& distances,
+    std::vector<std::vector<idx_t>>& labels)
 {
     
+    distances.resize(n);
+    labels.resize(n); 
+
     size_t* list_sizes_per_query = new size_t[n];
     invlists->prefetch_lists(centroid_idx, n * nprobe);
 
@@ -433,11 +436,6 @@ void IndexIVF::search_encrypted(
         list_sizes_per_query[i] = total;
     }
 
-    std::vector<size_t> global_offsets(n + 1, 0);
-    for (idx_t i = 0; i < n; ++i) {
-        global_offsets[i + 1] = global_offsets[i] + list_sizes_per_query[i];
-    }
-
 #pragma omp parallel
     {
         std::unique_ptr<InvertedListScanner> scanner(get_InvertedListScanner());
@@ -448,17 +446,13 @@ void IndexIVF::search_encrypted(
             size_t max_total_size = list_sizes_per_query[ith_query];
 
             std::vector<seal::Ciphertext> local_dist;
-            std::vector<seal::Ciphertext> local_ids;
+            std::vector<idx_t> local_ids;
             local_dist.reserve(max_total_size);
             local_ids.reserve(max_total_size);
-            // float* local_dist = new float[max_total_size];
-            // idx_t* local_ids = new idx_t[max_total_size];
-
-            size_t offset = 0;
 
             for (idx_t ith_np = 0; ith_np < nprobe; ++ith_np) {
-                const seal::Ciphertext& query = rq[ith_query][ith_np];
-                const seal::Ciphertext& query_sq = rq_sq[ith_query][ith_np];
+                seal::Ciphertext& query = rq[ith_query][ith_np];
+                seal::Ciphertext& query_sq = rq_sq[ith_query][ith_np];
 
                 idx_t key = centroid_idx[ith_query * nprobe + ith_np];
                 if (key < 0 || key >= nlist) continue;
@@ -470,8 +464,8 @@ void IndexIVF::search_encrypted(
                 const uint8_t* codes = scodes.get();
                 const idx_t* ids = invlists->get_ids(key);
 
-                std::vector<seal::Ciphertext> sub_distances(list_size);
-                std::vector<seal::Ciphertext> sub_ids(list_size);
+                std::vector<seal::Ciphertext> sub_distances;
+                std::vector<idx_t> sub_ids;
 
                 scanner->scan_codes_encrypted(
                     batchencoder,
@@ -491,13 +485,12 @@ void IndexIVF::search_encrypted(
                 local_ids.insert(local_ids.end(), sub_ids.begin(), sub_ids.end());
             }
 
-#pragma omp critical
-            {
-                distances[ith_query] = std::move(local_dist);
-                labels[ith_query] = std::move(local_ids);
-            }
+            distances[ith_query] = std::move(local_dist);
+            labels[ith_query] = std::move(local_ids);
+
         }
     }
+    delete[] list_sizes_per_query;
 }
 
 float* IndexIVF::get_IVF_centroids(){
@@ -1420,12 +1413,12 @@ size_t InvertedListScanner::scan_codes_encrypted(
             int64_t BFV_SCALING_FACTOR,
             size_t key,
             size_t list_size,
-            seal::Ciphertext rq,
-            seal::Ciphertext rq_sq,
+            seal::Ciphertext& rq,
+            seal::Ciphertext& rq_sq,
             const uint8_t* codes,
             const idx_t* ids,
-            std::vector<seal::Ciphertext> local_dist,
-            std::vector<seal::Ciphertext> local_ids) const {
+            std::vector<seal::Ciphertext>& local_dist,
+            std::vector<idx_t>& local_ids) const {
     throw std::runtime_error("scan_codes_encrypted() not implemented");
     return size_t(0);
 }
