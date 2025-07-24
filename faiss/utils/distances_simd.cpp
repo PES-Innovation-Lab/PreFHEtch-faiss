@@ -100,10 +100,6 @@ void fvec_L2sqr_ny_ref(
     }
 }
 
-
-
-namespace faiss {
-
 // (a-b)^2 = a^2 + b^2 - 2ab, where:
 // - a^2 is computed from decoded_vec (plaintext)
 // - b^2 is rq_sq (encrypted, precomputed)
@@ -113,6 +109,7 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     seal::BatchEncoder& encoder,
     seal::Evaluator& evaluator,
     seal::RelinKeys& rKey,
+    int64_t BFV_SCALING_FACTOR,
     const std::vector<float>& decoded_vec,
     const seal::Ciphertext& rq,          // Encrypted vector b, scaled by BFV_SCALING_FACTOR
     const seal::Ciphertext& rq_sq,       // Encrypted b², scaled by BFV_SCALING_FACTOR²
@@ -126,6 +123,7 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     // Scale to match rq_sq's scaling (BFV_SCALING_FACTOR²)
     int64_t scaled_a2 = static_cast<int64_t>(a2 * BFV_SCALING_FACTOR * BFV_SCALING_FACTOR);
     seal::Plaintext pt_a2;
+    // Change scaled_a2 to be a vector<int64_t>
     encoder.encode(scaled_a2, pt_a2);  // Encodes as a constant polynomial
 
     // --- 2. Compute dot product <a, b> ---
@@ -146,6 +144,8 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     size_t nslots = encoder.slot_count();
     for (size_t step = 1; step < nslots; step <<= 1) {
         seal::Ciphertext rotated;
+        // see if we can use something with relinearization RelinKeys
+        // because the following function takes galois keys not rkeys
         evaluator.rotate_rows(ab, step, rKey, rotated);
         evaluator.add_inplace(ab, rotated);
     }
@@ -153,6 +153,7 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     // --- 3. Compute -2ab (already scaled by BFV_SCALING_FACTOR²) ---
     // Multiply by -2 (no additional scaling needed)
     seal::Plaintext pt_minus2;
+    // again -2 needs to be an int64 vector
     encoder.encode(-2, pt_minus2);
     evaluator.multiply_plain_inplace(ab, pt_minus2);
     evaluator.relinearize_inplace(ab, rKey);
@@ -165,7 +166,6 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     return result;
 }
 
-}        
 void fvec_L2sqr_ny_y_transposed_ref(
         float* dis,
         const float* x,
