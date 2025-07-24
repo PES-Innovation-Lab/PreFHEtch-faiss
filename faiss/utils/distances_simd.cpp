@@ -17,6 +17,9 @@
 
 #include <faiss/impl/FaissAssert.h>
 #include <faiss/impl/platform_macros.h>
+
+#include <cstddef>
+#include <seal/seal.h>
 #include <faiss/utils/simdlib.h>
 
 #ifdef __SSE3__
@@ -97,18 +100,72 @@ void fvec_L2sqr_ny_ref(
     }
 }
 
-void fvec_L2sqr_ny_encrypted(
-        float* dis,
-        const float* x,
-        const float* y,
-        size_t d,
-        size_t ny) {
-    for (size_t i = 0; i < ny; i++) {
-        dis[i] = fvec_L2sqr(x, y, d);
-        y += d;
+
+
+namespace faiss {
+
+// (a-b)^2 = a^2 + b^2 - 2ab, where:
+// - a^2 is computed from decoded_vec (plaintext)
+// - b^2 is rq_sq (encrypted, precomputed)
+// - -2ab is computed as -2 * <decoded_vec, rq> (encrypted)
+// Returns: encrypted L2 squared distance (seal::Ciphertext)
+seal::Ciphertext fvec_L2sqr_encrypted(
+    seal::BatchEncoder& encoder,
+    seal::Evaluator& evaluator,
+    seal::RelinKeys& rKey,
+    const std::vector<float>& decoded_vec,
+    const seal::Ciphertext& rq,          // Encrypted vector b, scaled by BFV_SCALING_FACTOR
+    const seal::Ciphertext& rq_sq,       // Encrypted b², scaled by BFV_SCALING_FACTOR²
+    size_t d)
+{
+    // --- 1. Compute plaintext a² (with proper scaling) ---
+    double a2 = 0.0;
+    for (size_t i = 0; i < d; ++i) {
+        a2 += decoded_vec[i] * decoded_vec[i];
     }
+    // Scale to match rq_sq's scaling (BFV_SCALING_FACTOR²)
+    int64_t scaled_a2 = static_cast<int64_t>(a2 * BFV_SCALING_FACTOR * BFV_SCALING_FACTOR);
+    seal::Plaintext pt_a2;
+    encoder.encode(scaled_a2, pt_a2);  // Encodes as a constant polynomial
+
+    // --- 2. Compute dot product <a, b> ---
+    // Encode decoded_vec with scaling (BFV_SCALING_FACTOR)
+    std::vector<uint64_t> pod_vec(encoder.slot_count(), 0);
+    for (size_t i = 0; i < d; ++i) {
+        pod_vec[i] = static_cast<uint64_t>(decoded_vec[i] * BFV_SCALING_FACTOR);
+    }
+    seal::Plaintext pt_a;
+    encoder.encode(pod_vec, pt_a);
+    
+    // Compute component-wise multiplication (a_i * b_i, scaled by BFV_SCALING_FACTOR²)
+    seal::Ciphertext ab;
+    evaluator.multiply_plain(rq, pt_a, ab);
+    evaluator.relinearize_inplace(ab, rKey);
+    
+    // Sum all slots (result is in slot 0, scaled by BFV_SCALING_FACTOR²)
+    size_t nslots = encoder.slot_count();
+    for (size_t step = 1; step < nslots; step <<= 1) {
+        seal::Ciphertext rotated;
+        evaluator.rotate_rows(ab, step, rKey, rotated);
+        evaluator.add_inplace(ab, rotated);
+    }
+
+    // --- 3. Compute -2ab (already scaled by BFV_SCALING_FACTOR²) ---
+    // Multiply by -2 (no additional scaling needed)
+    seal::Plaintext pt_minus2;
+    encoder.encode(-2, pt_minus2);
+    evaluator.multiply_plain_inplace(ab, pt_minus2);
+    evaluator.relinearize_inplace(ab, rKey);
+
+    // --- 4. Final result: a² + b² - 2ab ---
+    seal::Ciphertext result = rq_sq;      // b² (scaled by BFV_SCALING_FACTOR²)
+    evaluator.add_plain_inplace(result, pt_a2);  // + a² (same scaling)
+    evaluator.add_inplace(result, ab);     // + (-2ab) (same scaling)
+    
+    return result;
 }
 
+}        
 void fvec_L2sqr_ny_y_transposed_ref(
         float* dis,
         const float* x,

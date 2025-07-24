@@ -1035,8 +1035,6 @@ struct IVFPQScannerT : QueryTables {
             }
 
             seal::Ciphertext dis;
-            // NEED TO REPLACE WITH ENCRYPTED OPERATION
-            fvec_L2sqr(NULL, NULL, 0);
             dis = fvec_L2sqr_encrypted(encoder, evaluator, rKey, decoded_vec, rq, rq_sq, d);
             distances.push_back(dis);
             idx.push_back(ids[j]);
