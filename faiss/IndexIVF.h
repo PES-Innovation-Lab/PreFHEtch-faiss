@@ -14,6 +14,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include "seal/ciphertext.h"
 
 #include <faiss/Clustering.h>
 #include <faiss/Index.h>
@@ -329,12 +330,15 @@ struct IndexIVF : Index, IndexIVFInterface {
      * such that the input can be batched at this level itself.
      *************************/
     void search_encrypted(
-            idx_t n,
-            const float* x,
-            idx_t* centroid_idx,
-            float* distances,
-            idx_t* labels,
-            size_t* list_sizes_per_query) override;
+        seal::BatchEncoder batchencoder,
+        seal::Evaluator evaluator,
+        seal::RelinKeys rKey,
+        idx_t n,
+        std::vector<std::vector<seal::Ciphertext>> rq,
+        std::vector<std::vector<seal::Ciphertext>> rq_sq,
+        idx_t* centroid_idx,
+        std::vector<std::vector<seal::Ciphertext>> distances,
+        std::vector<std::vector<seal::Ciphertext>> labels);
 
     float* get_IVF_centroids();
 
@@ -540,7 +544,8 @@ struct InvertedListScanner {
     virtual size_t scan_codes_encrypted(
             size_t key,
             size_t list_size,
-            const float* query,
+            seal::Ciphertext residual_query,
+            // const float* query,
             const uint8_t* codes,
             const idx_t* ids,
             float* local_dist,

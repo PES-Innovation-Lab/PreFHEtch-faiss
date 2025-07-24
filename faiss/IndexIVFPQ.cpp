@@ -17,6 +17,11 @@
 
 #include <algorithm>
 #include "faiss/impl/code_distance/code_distance-generic.h"
+#include "seal/batchencoder.h"
+#include "seal/ciphertext.h"
+#include "seal/evaluator.h"
+#include "seal/relinkeys.h"
+#include "seal/serializable.h"
 
 #include <faiss/utils/Heap.h>
 #include <faiss/utils/distances.h>
@@ -1009,27 +1014,32 @@ struct IVFPQScannerT : QueryTables {
     }
 
     void scan_on_the_fly_dist_encrypted(
-            const float* qi,
+            seal::BatchEncoder encoder,
+            seal::Evaluator evaluator,
+            seal::RelinKeys rKey,
+            int64_t BFV_SCALING_FACTOR,
+            seal::Ciphertext rq,
+            seal::Ciphertext rq_sq,
             size_t key,
             size_t ncode,
             const uint8_t* codes,
             const idx_t* ids,
-            float* dist,
-            idx_t* idx) const {
+            std::vector<seal::Ciphertext> distances,
+            std::vector<idx_t> idx) const {
 
-      // NEED TO REPLACE WITH ENCRYPTED OPERATION
-      // this is for L2 only.
-      ivfpq.quantizer->compute_residual(qi, residual_vec, key);
-      const float* dvec = residual_vec;
 
       for (size_t j = 0; j < ncode; j++, codes += pq.code_size) {
             pq.decode(codes, decoded_vec);
+            for (int i = 0; i<d; i++){
+                decoded_vec[i] = decoded_vec[i] * BFV_SCALING_FACTOR;
+            }
 
-            float dis;
+            seal::Ciphertext dis;
             // NEED TO REPLACE WITH ENCRYPTED OPERATION
-            dis = fvec_L2sqr(decoded_vec, dvec, d);
-            dist[j] = dis;
-            idx[j] = ids[j];
+            fvec_L2sqr(NULL, NULL, 0);
+            dis = fvec_L2sqr_encrypted(encoder, evaluator, rKey, decoded_vec, rq, rq_sq, d);
+            distances.push_back(dis);
+            idx.push_back(ids[j]);
         }
     }
 
@@ -1284,18 +1294,21 @@ struct IVFPQScanner : IVFPQScannerT<idx_t, METRIC_TYPE, PQDecoder>,
     }
 
     size_t scan_codes_encrypted(
+        seal::BatchEncoder batchencoder,
+        seal::Evaluator evaluator,
+        seal::RelinKeys rKey,
         size_t key,
         size_t list_size,
-        const float* query,
+        seal::Ciphertext residual_query,
         const uint8_t* codes,
         const idx_t* ids,
-        float* local_dist,
-        idx_t* local_idx
+        std::vector<seal::Ciphertext> local_dist,
+        std::vector<seal::Ciphertext> local_ids,
     ) const override {
     
 
-      // this->scan_on_the_fly_dist_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
-      this->scan_list_with_table_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
+      this->scan_on_the_fly_dist_encrypted(residual_query, key, list_size, codes, ids, local_dist, local_idx);
+      // this->scan_list_with_table_encrypted(query, key, list_size, codes, ids, local_dist, local_idx);
       return size_t(0);
     }
 

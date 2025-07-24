@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <sstream>
 #include <string>
+#include <seal/seal.h>
 #include <typeinfo>
 
 #define FAISS_VERSION_MAJOR 1
@@ -199,7 +200,10 @@ struct Index {
             idx_t* centroid_idx,
             float* distances,
             idx_t* labels,
-            size_t* list_sizes_per_query);
+            size_t* list_sizes_per_query,
+            seal::BatchEncoder batchencoder,
+            seal::Evaluator evaluator,
+            seal::RelinKeys rKey);
 
     virtual void search(
             idx_t n,

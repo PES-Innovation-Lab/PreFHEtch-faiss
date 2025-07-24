@@ -20,6 +20,10 @@
 #include <cinttypes>
 #include <cstdio>
 #include <limits>
+#include "seal/batchencoder.h"
+#include "seal/ciphertext.h"
+#include "seal/evaluator.h"
+#include "seal/relinkeys.h"
 #include <faiss/MetricType.h>
 
 #include <faiss/utils/hamming.h>
@@ -402,13 +406,18 @@ void IndexIVF::search(
  *****************************/
 
 void IndexIVF::search_encrypted(
+    seal::BatchEncoder batchencoder,
+    seal::Evaluator evaluator,
+    seal::RelinKeys rKey,
     idx_t n,
-    const float* x,
+    std::vector<std::vector<seal::Ciphertext>> rq,
+    std::vector<std::vector<seal::Ciphertext>> rq_sq,
     idx_t* centroid_idx,
-    float* distances,
-    idx_t* labels,
-    size_t* list_sizes_per_query)
+    std::vector<std::vector<seal::Ciphertext>> distances,
+    std::vector<std::vector<seal::Ciphertext>> labels)
 {
+    
+    size_t* list_sizes_per_query = new size_t[n];
     invlists->prefetch_lists(centroid_idx, n * nprobe);
 
     for (idx_t i = 0; i < n; ++i) {
@@ -433,12 +442,15 @@ void IndexIVF::search_encrypted(
 
 #pragma omp for
         for (idx_t ith_query = 0; ith_query < n; ++ith_query) {
-            const float* query = x + ith_query * d;
-
+            const std::vector<seal::Ciphertext>& query = rq[ith_query];
             size_t max_total_size = list_sizes_per_query[ith_query];
 
-            float* local_dist = new float[max_total_size];
-            idx_t* local_ids = new idx_t[max_total_size];
+            std::vector<seal::Ciphertext> local_dist;
+            std::vector<seal::Ciphertext> local_ids;
+            local_dist.reserve(max_total_size);
+            local_ids.reserve(max_total_size);
+            // float* local_dist = new float[max_total_size];
+            // idx_t* local_ids = new idx_t[max_total_size];
 
             size_t offset = 0;
 
@@ -453,25 +465,30 @@ void IndexIVF::search_encrypted(
                 const uint8_t* codes = scodes.get();
                 const idx_t* ids = invlists->get_ids(key);
 
+                std::vector<seal::Ciphertext> sub_distances(list_size);
+                std::vector<seal::Ciphertext> sub_ids(list_size);
+
                 scanner->scan_codes_encrypted(
+                    batchencoder,
+                    evaluator,
+                    rKey,
                     key,
                     list_size,
                     query,
                     codes,
                     ids,
-                    local_dist + offset,
-                    local_ids + offset
+                    sub_distances,
+                    sub_ids
                 );
-
-                offset += list_size;
+                local_dist.insert(local_dist.end(), sub_distances.begin(), sub_distances.end());
+                local_ids.insert(local_ids.end(), sub_ids.begin(), sub_ids.end());
             }
 
-            size_t global_offset = global_offsets[ith_query];
-            std::copy(local_dist, local_dist + offset, distances + global_offset);
-            std::copy(local_ids, local_ids + offset, labels + global_offset);
-
-            delete[] local_dist;
-            delete[] local_ids;
+#pragma omp critical
+            {
+                distances[ith_query] = std::move(local_dist);
+                labels[ith_query] = std::move(local_ids);
+            }
         }
     }
 }
@@ -1392,7 +1409,8 @@ IndexIVFStats indexIVF_stats;
 size_t InvertedListScanner::scan_codes_encrypted(
             size_t key,
             size_t list_size,
-            const float* query,
+            // const float* query,
+            seal::Ciphertext residual_query,
             const uint8_t* codes,
             const idx_t* ids,
             float* local_dist,
