@@ -335,6 +335,7 @@ struct IndexIVF : Index, IndexIVFInterface {
         seal::BatchEncoder& batchencoder,
         seal::Evaluator& evaluator,
         seal::RelinKeys& rKey,
+        seal::GaloisKeys& gKey,
         int64_t BFV_SCALING_FACTOR,
         idx_t n,
         std::vector<std::vector<seal::Ciphertext>>& rq,

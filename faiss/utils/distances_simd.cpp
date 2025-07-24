@@ -101,6 +101,18 @@ void fvec_L2sqr_ny_ref(
     }
 }
 
+void fvec_L2sqr_ny_encrypted(
+        float* dis,
+        const float* x,
+        const float* y,
+        size_t d,
+        size_t ny) {
+    for (size_t i = 0; i < ny; i++) {
+        dis[i] = fvec_L2sqr(x, y, d);
+        y += d;
+    }
+}
+
 // (a-b)^2 = a^2 + b^2 - 2ab, where:
 // - a^2 is computed from decoded_vec (plaintext)
 // - b^2 is rq_sq (encrypted, precomputed)
@@ -130,9 +142,9 @@ seal::Ciphertext fvec_L2sqr_encrypted(
 
     // --- 2. Compute dot product <a, b> ---
     // Encode decoded_vec with scaling (BFV_SCALING_FACTOR)
-    std::vector<uint64_t> pod_vec(encoder.slot_count(), 0);
+    std::vector<int64_t> pod_vec(encoder.slot_count(), 0);
     for (size_t i = 0; i < d; ++i) {
-        pod_vec[i] = static_cast<uint64_t>(decoded_vec[i] * BFV_SCALING_FACTOR);
+        pod_vec[i] = static_cast<int64_t>(decoded_vec[i] * BFV_SCALING_FACTOR);
     }
     seal::Plaintext pt_a;
     encoder.encode(pod_vec, pt_a);
@@ -144,7 +156,9 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     
     // Sum all slots (result is in slot 0, scaled by BFV_SCALING_FACTOR²)
     size_t nslots = encoder.slot_count();
-    for (size_t step = 1; step < nslots; step <<= 1) {
+    size_t effective_slots = 1;
+    while (effective_slots < d) effective_slots <<= 1;
+    for (size_t step = 1; step < effective_slots; step <<= 1) {
         seal::Ciphertext rotated;
         evaluator.rotate_rows(ab, step, gKey, rotated);
         evaluator.add_inplace(ab, rotated);
@@ -156,7 +170,7 @@ seal::Ciphertext fvec_L2sqr_encrypted(
     std::vector<int64_t> minus2_vec(encoder.slot_count(), -2);
     encoder.encode(minus2_vec, pt_minus2);
     evaluator.multiply_plain_inplace(ab, pt_minus2);
-    evaluator.relinearize_inplace(ab, rKey);
+    // evaluator.relinearize_inplace(ab, rKey);
 
     // --- 4. Final result: a² + b² - 2ab ---
     seal::Ciphertext result = rq_sq;      // b² (scaled by BFV_SCALING_FACTOR²)
